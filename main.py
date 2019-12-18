@@ -4,7 +4,7 @@ import time
 
 import serial
 
-SKIP_SLA = True
+SKIP_SLA = False
 
 
 def serial_ports():
@@ -37,12 +37,14 @@ def write_serial(s, data):
     write_serial_raw(s, cmd_bytes)
 
 
-def write_serial_raw(s, data):
+def write_serial_raw(s, data, nowrite=False):
     sdata = []
     for cmd_byte in data:
         hex_byte = ("{0:02x}".format(cmd_byte))
+        #print(hex_byte, end=' ')
         sdata.append(hex_byte)
-        s.write(bytearray.fromhex(hex_byte))
+        if not nowrite:
+            s.write(bytearray.fromhex(hex_byte))
     print('TX ->', hex_list_to_str(sdata))
 
 
@@ -142,7 +144,8 @@ def qualify_host(s):
             write_serial(s, data)
             if ''.join(read_serial(s, 4)) == data:
                 read_serial(s, 2)
-                write_serial(s, ''.join(ip))
+                for i in range(0, 16):
+                    write_serial(s, ''.join(ip))
                 read_serial(s, 2)
 
 
@@ -171,16 +174,16 @@ def send_da(s):
             return
         read_serial(s, 2)
         ba = load_da()
-        for i in range(int(len(ba)/2000)):
-            time.sleep(0.01)
-            write_serial_raw(s, ba[i*2000:(i+1)*2000])
+        print('Loaded DA. Sending...')
+        for i in range(int(len(ba)/8192)):
+            write_serial_raw(s, ba[i*8192:(i+1)*8192])
         read_serial(s, 2)
         read_serial(s, 2)
 
 
 if __name__ == '__main__':
     print('Listening for ports!')
-    abort = Fals
+    abort = False
     while not abort:
         time.sleep(1)
         ports = serial_ports()
@@ -192,6 +195,6 @@ if __name__ == '__main__':
             check_preloader(ser)
             get_soc_id(ser)
             send_auth_file(ser)
-            # qualify_host(ser)
+            qualify_host(ser)
             send_da(ser)
             abort = True
